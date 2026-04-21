@@ -1,3 +1,4 @@
+from io import BytesIO
 import streamlit as st
 from PIL import Image
 
@@ -8,13 +9,11 @@ def load_image(file_obj):
 	pixels = list(img.getdata())
 	return img, width, height, pixels
 
-
 # Fungsi membentuk kembali gambar dari list pixel RGB
 def build_image(width, height, pixels):
 	new_img = Image.new("RGB", (width, height))
 	new_img.putdata(pixels)
 	return new_img
-
 
 # Averaging
 def grayscale_averaging(pixels):
@@ -24,7 +23,6 @@ def grayscale_averaging(pixels):
 		result.append((gray, gray, gray))
 	return result
 
-
 # Luminosity (Weighting)
 def grayscale_weighting(pixels):
 	result = []
@@ -32,7 +30,6 @@ def grayscale_weighting(pixels):
 		gray = int(0.299 * r + 0.587 * g + 0.114 * b)
 		result.append((gray, gray, gray))
 	return result
-
 
 # Desaturation
 def grayscale_desaturation(pixels):
@@ -42,21 +39,17 @@ def grayscale_desaturation(pixels):
 		result.append((gray, gray, gray))
 	return result
 
-
 # Single channel (Red)
 def grayscale_single_channel(pixels):
 	return [(r, r, r) for r, g, b in pixels]
-
 
 # Decomposition (Max)
 def grayscale_decomposition_max(pixels):
 	return [(max(r, g, b),) * 3 for r, g, b in pixels]
 
-
 # Decomposition (Min)
 def grayscale_decomposition_min(pixels):
 	return [(min(r, g, b),) * 3 for r, g, b in pixels]
-
 
 def get_methods():
 	return {
@@ -92,6 +85,10 @@ def get_methods():
 		),
 	}
 
+def image_to_png_bytes(image):
+	buffer = BytesIO()
+	image.save(buffer, format="PNG")
+	return buffer.getvalue()
 
 def apply_selected_method(width, height, pixels, method_name, methods, progress_bar):
 	method_func, description, filename = methods[method_name]
@@ -103,38 +100,47 @@ def apply_selected_method(width, height, pixels, method_name, methods, progress_
 	method_image = build_image(width, height, method_pixels)
 
 	progress_bar.progress(90, text="Menyiapkan file download...")
-	method_image.save(filename, format="PNG")
-	with open(filename, "rb") as image_file:
-		image_bytes = image_file.read()
+	image_bytes = image_to_png_bytes(method_image)
 
 	progress_bar.progress(100, text="Selesai")
 	return method_image, image_bytes, description, filename
-
 
 def render_basic_style():
 	st.markdown(
 		"""
 		<style>
-			.main > div {
-				max-width: 1250px;
-				margin: 0 auto;
+			.footer-custom {
+				margin-top: 10rem;
+				padding-top: 1rem;
+				border-top: 1px solid rgba(224,224,224,0.3);
+				text-align: center;
+				color: #888;
+				font-size: 1rem;
+			}
+			.stSelectbox > div[data-baseweb="select"] {
+				width: 100% !important;
+			}
+			.stDownloadButton button {
+				width: 100% !important;
 			}
 			.block-container {
+				max-width: 1000px !important;
+				margin-left: auto !important;
+				margin-right: auto !important;
 				padding-top: 2rem;
 				padding-bottom: 2rem;
 			}
 			h1, h2, h3 {
 				text-align: center;
 			}
-			.intro-text {
-				text-align: center;
-				margin-bottom: 1rem;
+			div[data-testid="column"] .stDownloadButton {
+				display: flex;
+				justify-content: flex-end;
 			}
 		</style>
 		""",
 		unsafe_allow_html=True,
 	)
-
 
 def main():
 	st.set_page_config(page_title="Grayscale Converter", layout="wide")
@@ -149,7 +155,7 @@ def main():
 	methods = get_methods()
 	method_names = list(methods.keys())
 
-	control_col1, control_col2 = st.columns([2, 1])
+	control_col1, control_col2 = st.columns(2)
 	with control_col1:
 		selected_method = st.selectbox("Pilih metode grayscale", method_names)
 
@@ -187,18 +193,17 @@ def main():
 			data=download_data,
 			file_name=download_filename,
 			mime="image/png",
+			use_container_width=True,
 			disabled=download_disabled,
 			key=f"download-selected-{selected_method}",
 		)
 
-	st.caption(selected_description)
-
 	if uploaded_file is None:
-		st.progress(0, text="Menunggu upload gambar...")
-		st.info("Silakan upload gambar terlebih dahulu.")
 		return
 
-	st.subheader("Preview")
+	st.caption(selected_description)
+
+
 	preview_col1, preview_col2 = st.columns(2)
 	with preview_col1:
 		st.caption("Gambar Asli")
@@ -207,6 +212,8 @@ def main():
 		st.caption(selected_method)
 		st.image(result_image, use_container_width=True)
 
+	# Footer
+	st.markdown('<div class="footer-custom">Made by Lukas Austin | NPM 140810230011</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
 	main()
