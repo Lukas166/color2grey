@@ -3,11 +3,19 @@ import streamlit as st
 from PIL import Image
 
 # Fungsi membaca gambar dan mengubah ke list pixel RGB
-def load_image(file_obj):
+def load_image(file_obj, max_dim=2048):
 	img = Image.open(file_obj).convert("RGB")
 	width, height = img.size
+	resized = False
+	# Resize jika salah satu sisi lebih besar dari max_dim
+	if width > max_dim or height > max_dim:
+		scale = min(max_dim / width, max_dim / height)
+		new_size = (int(width * scale), int(height * scale))
+		img = img.resize(new_size, Image.LANCZOS)
+		width, height = img.size
+		resized = True
 	pixels = list(img.getdata())
-	return img, width, height, pixels
+	return img, width, height, pixels, resized
 
 # Fungsi membentuk kembali gambar dari list pixel RGB
 def build_image(width, height, pixels):
@@ -167,7 +175,9 @@ def main():
 	result_image = None
 
 	if uploaded_file is not None:
-		original_image, width, height, pixels = load_image(uploaded_file)
+		original_image, width, height, pixels, resized = load_image(uploaded_file)
+		if resized:
+			st.info(f"Gambar di-resize otomatis ke {width}x{height} piksel agar proses lebih stabil.")
 		with st.spinner("Memproses gambar..."):
 			progress_bar = st.progress(10, text="Membaca gambar...")
 			(
